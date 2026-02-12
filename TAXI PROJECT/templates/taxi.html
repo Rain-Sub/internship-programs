@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Taxi Booking</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            text-align: center;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #2c3e50;
+        }
+
+        .booking-card {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            max-width: 400px;
+            margin: 20px auto;
+        }
+
+        .booking-card input, .booking-card select {
+            width: 90%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+        }
+
+        .booking-card button {
+            padding: 12px 20px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 6px;
+            background-color: #44bd32;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .booking-card button:hover {
+            background-color: #2f8f22;
+        }
+
+        #status {
+            margin-top: 15px;
+            font-weight: bold;
+            color: #e84118;
+        }
+
+        .taxi-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .taxi-card {
+            background-color: #ffffff;
+            padding: 20px;
+            margin: 10px;
+            border-radius: 10px;
+            width: 220px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            text-align: left;
+            transition: transform 0.2s;
+        }
+
+        .taxi-card.available {
+            border: 2px solid #44bd32;
+        }
+
+        .taxi-card.busy {
+            border: 2px solid #e84118;
+            opacity: 0.8;
+        }
+
+        .taxi-card:hover {
+            transform: translateY(-5px);
+        }
+    </style>
+</head>
+<body>
+
+<h1>🚖 Smart Taxi Booking</h1>
+
+<div class="booking-card">
+    <input type="text" id="username" placeholder="Your Name">
+
+    <h3>Current Location</h3>
+    <input type="text" id="currentLocation" placeholder="Enter Current Location">
+    <button onclick="getLocation()">Auto Detect Location</button>
+
+    <h3>Destination</h3>
+    <input type="text" id="destination" placeholder="Enter Destination">
+
+    <button onclick="bookTaxi()">Book Ride</button>
+
+    <div id="status"></div>
+</div>
+
+<h2>Available Taxis</h2>
+<div id="availableTaxis" class="taxi-container"></div>
+
+<h2>Booked Rides</h2>
+<div id="taxiContainer" class="taxi-container"></div>
+
+<script>
+    let taxiCount = 0;
+
+    // Sample taxi fleet
+    let taxis = [
+        { id: 1, driver: "John", type: "Sedan", status: "Available" },
+        { id: 2, driver: "Alice", type: "SUV", status: "Available" },
+        { id: 3, driver: "Bob", type: "Hatchback", status: "Available" },
+        { id: 4, driver: "Emma", type: "Sedan", status: "Available" },
+        { id: 5, driver: "Mike", type: "SUV", status: "Available" }
+    ];
+
+    function displayAvailableTaxis() {
+        const container = document.getElementById('availableTaxis');
+        container.innerHTML = '';
+        taxis.forEach(taxi => {
+            const card = document.createElement('div');
+            card.className = 'taxi-card ' + (taxi.status === "Available" ? 'available' : 'busy');
+            card.id = 'taxi-' + taxi.id;
+            card.innerHTML = `
+                <strong>Driver: ${taxi.driver}</strong><br>
+                Vehicle: ${taxi.type}<br>
+                Status: ${taxi.status}
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function getLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition((position) => {
+                const lat = position.coords.latitude.toFixed(5);
+                const lon = position.coords.longitude.toFixed(5);
+                document.getElementById('currentLocation').value = `Lat: ${lat}, Lon: ${lon}`;
+            }, (error) => {
+                alert('Unable to fetch location: ' + error.message);
+            });
+        } else {
+            alert("Geolocation is not supported by this browser.");
+        }
+    }
+
+    function calculateFare(distance) {
+        const baseFare = 50;
+        const ratePerKm = 15;
+        return baseFare + distance * ratePerKm;
+    }
+
+    function bookTaxi() {
+        const username = document.getElementById('username').value.trim();
+        const currentLocation = document.getElementById('currentLocation').value.trim();
+        const destination = document.getElementById('destination').value.trim();
+
+        if (!username || !currentLocation || !destination) {
+            document.getElementById('status').innerText = "Please fill in all fields!";
+            return;
+        }
+
+        // Find first available taxi
+        const taxi = taxis.find(t => t.status === "Available");
+        if (!taxi) {
+            document.getElementById('status').innerText = "No taxis available at the moment!";
+            return;
+        }
+
+        // Mark taxi as busy
+        taxi.status = "En Route";
+        document.getElementById('taxi-' + taxi.id).className = 'taxi-card busy';
+        document.getElementById('taxi-' + taxi.id).innerHTML = `
+            <strong>Driver: ${taxi.driver}</strong><br>
+            Vehicle: ${taxi.type}<br>
+            Status: ${taxi.status}
+        `;
+
+        // Simulate distance and fare
+        const distance = Math.floor(Math.random() * 20) + 1;
+        const fare = calculateFare(distance);
+
+        taxiCount++;
+        document.getElementById('status').innerText = `Ride booked for ${username}! Taxi: ${taxi.driver}, Fare: ₹${fare}`;
+
+        // Add to booked rides container
+        const taxiContainer = document.getElementById('taxiContainer');
+        const taxiCard = document.createElement('div');
+        taxiCard.className = 'taxi-card busy';
+        taxiCard.innerHTML = `
+            <strong>Taxi #${taxiCount}</strong><br>
+            Driver: ${taxi.driver}<br>
+            From: ${currentLocation}<br>
+            To: ${destination}<br>
+            Distance: ${distance} km<br>
+            Fare: ₹${fare}<br>
+            Status: En Route
+        `;
+        taxiContainer.appendChild(taxiCard);
+
+        // Clear input fields
+        document.getElementById('currentLocation').value = '';
+        document.getElementById('destination').value = '';
+    }
+
+    // Initialize available taxis on page load
+    displayAvailableTaxis();
+</script>
+
+</body>
+</html>
