@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App - India</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #42f8da 0%, #49dbff 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            padding: 20px;
+        }
+
+        .weather-card {
+            background: rgba(253, 83, 211, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            width: 350px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .search-box input {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 25px;
+            outline: none;
+            font-size: 14px;
+        }
+
+        .search-box button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 25px;
+            background: #ffffff;
+            color: white;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .search-box button:hover {
+            background: #000000;
+        }
+
+        .weather-icon {
+            font-size: 80px;
+            margin: 20px 0;
+        }
+
+        .temp {
+            font-size: 60px;
+            font-weight: bold;
+        }
+
+        .description {
+            font-size: 20px;
+            margin-bottom: 20px;
+            text-transform: capitalize;
+        }
+
+        .details {
+            display: flex;
+            justify-content: space-around;
+            padding-top: 20px;
+            border-top: 1px solid rgba(104, 253, 246, 0.3);
+        }
+
+        .details div {
+            text-align: center;
+        }
+
+        .details i {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .error {
+            color: hsl(187, 100%, 21%);
+            margin-top: 15px;
+            display: none;
+            background: rgba(87, 243, 204, 0.2);
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .hint {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="weather-card">
+        <h2>🇮🇳 India Weather</h2>
+        <p class="hint">Search for Indian cities only</p>
+        
+        <div class="search-box">
+            <input type="text" id="cityInput" placeholder="Enter city name (e.g., Mumbai, Delhi)...">
+            <button id="searchBtn">Search</button>
+        </div>
+
+        <div id="weatherData">
+            <div class="weather-icon">
+                <i id="weatherIcon" class="fas fa-cloud-sun"></i>
+            </div>
+            <div class="temp"><span id="temp">--</span>°C</div>
+            <div class="description" id="description">Search for a city</div>
+            
+            <div class="details">
+                <div>
+                    <i class="fas fa-wind"></i>
+                    <p>Wind: <span id="wind">--</span> km/h</p>
+                </div>
+                <div>
+                    <i class="fas fa-map-marker-alt"></i>
+                    <p><span id="city">--</span></p>
+                </div>
+            </div>
+        </div>
+
+        <p class="error" id="error"></p>
+    </div>
+
+    <script>
+        // Map weather codes to descriptions and icons
+        function getWeatherInfo(code) {
+            const codes = {
+                0: { desc: "Clear Sky", icon: "fa-sun" },
+                1: { desc: "Mainly Clear", icon: "fa-sun" },
+                2: { desc: "Partly Cloudy", icon: "fa-cloud-sun" },
+                3: { desc: "Overcast", icon: "fa-cloud" },
+                45: { desc: "Fog", icon: "fa-smog" },
+                48: { desc: "Fog", icon: "fa-smog" },
+                51: { desc: "Drizzle", icon: "fa-cloud-rain" },
+                53: { desc: "Drizzle", icon: "fa-cloud-rain" },
+                55: { desc: "Drizzle", icon: "fa-cloud-rain" },
+                61: { desc: "Rain", icon: "fa-rain" },
+                63: { desc: "Rain", icon: "fa-rain" },
+                65: { desc: "Heavy Rain", icon: "fa-rain" },
+                71: { desc: "Snow", icon: "fa-snowflake" },
+                73: { desc: "Snow", icon: "fa-snowflake" },
+                75: { desc: "Snow", icon: "fa-snowflake" },
+                77: { desc: "Snow", icon: "fa-snowflake" },
+                80: { desc: "Showers", icon: "fa-cloud-showers-heavy" },
+                81: { desc: "Showers", icon: "fa-cloud-showers-heavy" },
+                82: { desc: "Showers", icon: "fa-cloud-showers-heavy" },
+                95: { desc: "Thunderstorm", icon: "fa-bolt" },
+                96: { desc: "Thunderstorm", icon: "fa-bolt" },
+                99: { desc: "Thunderstorm", icon: "fa-bolt" }
+            };
+            return codes[code] || { desc: "Unknown", icon: "fa-cloud" };
+        }
+
+        // Main function to fetch weather
+        function getWeather() {
+            const city = document.getElementById('cityInput').value.trim();
+            const errorEl = document.getElementById('error');
+            
+            if (!city) {
+                errorEl.style.display = 'block';
+                errorEl.textContent = 'Please enter a city name';
+                return;
+            }
+
+            errorEl.style.display = 'none';
+
+            // Show loading
+            document.getElementById('temp').textContent = '...';
+            document.getElementById('description').textContent = 'Loading...';
+
+            // Step 1: Get city coordinates - Filtered for India only
+            // Using country_codes=IN to restrict to India
+            fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1&country_code=IN&language=en&format=json`)
+                .then(response => response.json())
+                .then(geoData => {
+                    if (!geoData.results || geoData.results.length === 0) {
+                        throw new Error('City not found in India. Try a different city.');
+                    }
+
+                    const { latitude, longitude, name, country, admin1 } = geoData.results[0];
+
+                    // Handle case where country might be undefined
+                    const countryName = country || 'India';
+                    const stateName = admin1 || '';
+
+                    // Step 2: Get weather data
+                    return fetch(
+                        `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`
+                    ).then(res => res.json()).then(weatherData => {
+                        return { weatherData, name, countryName, stateName };
+                    });
+                })
+                .then(data => {
+                    const { weatherData, name, countryName, stateName } = data;
+                    const current = weatherData.current_weather;
+                    const info = getWeatherInfo(current.weathercode);
+
+                    // Build location string
+                    let locationString = name;
+                    if (stateName) locationString += `, ${stateName}`;
+                    locationString += `, ${countryName}`;
+
+                    // Update UI
+                    document.getElementById('weatherIcon').className = `fas ${info.icon}`;
+                    document.getElementById('temp').textContent = current.temperature;
+                    document.getElementById('description').textContent = info.desc;
+                    document.getElementById('wind').textContent = current.windspeed;
+                    document.getElementById('city').textContent = locationString;
+                })
+                .catch(err => {
+                    errorEl.style.display = 'block';
+                    errorEl.textContent = err.message;
+                    document.getElementById('description').textContent = 'Search for a city';
+                    document.getElementById('temp').textContent = '--';
+                });
+        }
+
+        // Add event listener to button
+        document.getElementById('searchBtn').addEventListener('click', getWeather);
+
+        // Add Enter key support
+        document.getElementById('cityInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                getWeather();
+            }
+        });
+    </script>
+</body>
+</html>
