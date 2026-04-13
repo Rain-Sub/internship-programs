@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Chat App</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: Arial;
+    display: flex;
+    height: 100vh;
+}
+
+.sidebar {
+    width: 30%;
+    background: #075e54;
+    color: white;
+    padding: 10px;
+}
+
+.user {
+    padding: 10px;
+    border-bottom: 1px solid #0a7a6c;
+    cursor: pointer;
+}
+
+.user:hover {
+    background: #0a7a6c;
+}
+
+.chat-container {
+    width: 70%;
+    display: flex;
+    flex-direction: column;
+}
+
+.header {
+    background: #075e54;
+    color: white;
+    padding: 15px;
+}
+
+.chat-box {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+    background: #ece5dd;
+}
+
+.message {
+    margin: 5px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    max-width: 60%;
+}
+
+.sent {
+    background: #dcf8c6;
+    margin-left: auto;
+}
+
+.received {
+    background: white;
+}
+
+.input-area {
+    display: flex;
+    padding: 10px;
+    background: #f0f0f0;
+}
+
+input {
+    padding: 6px;
+    margin: 2px;
+}
+
+button {
+    padding: 6px;
+    background: #075e54;
+    color: white;
+    border: none;
+}
+</style>
+</head>
+
+<body>
+
+<div class="sidebar">
+    <h3>Users</h3>
+    <div id="userList"></div>
+
+    <hr>
+
+    <input id="username" placeholder="Username">
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+
+    <p id="status"></p>
+</div>
+
+<div class="chat-container">
+    <div class="header" id="chatHeader">Select a user</div>
+
+    <div id="chat" class="chat-box"></div>
+
+    <div class="input-area">
+        <input id="message" placeholder="Type message">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+</div>
+
+<script>
+let token = "";
+let ws = null;
+let userId = null;
+let currentReceiver = null;
+
+// 🔐 LOGIN
+async function login() {
+    let username = document.getElementById("username").value;
+    let password = document.getElementById("password").value;
+
+    let res = await fetch(`http://127.0.0.1:8001/login?username=${username}&password=${password}`, {
+        method: "POST"
+    });
+
+    let data = await res.json();
+
+    if (data.access_token) {
+        token = data.access_token;
+
+        let payload = JSON.parse(atob(token.split('.')[1]));
+        userId = payload.id;
+
+        connectWebSocket();
+        loadUsers();   // ✅ IMPORTANT FIX
+
+        document.getElementById("status").innerText = "Logged in ✅";
+    } else {
+        document.getElementById("status").innerText = "Login failed ❌";
+    }
+}
+
+// 👥 LOAD USERS
+async function loadUsers() {
+    let res = await fetch("http://127.0.0.1:8001/users");
+    let users = await res.json();
+
+    let container = document.getElementById("userList");
+    container.innerHTML = "";
+
+    users.forEach(user => {
+        if (user.id !== userId) {
+            let div = document.createElement("div");
+            div.className = "user";
+            div.innerText = user.username;
+
+            div.onclick = () => selectUser(user.id);
+
+            container.appendChild(div);
+        }
+    });
+}
+
+// 📜 SELECT USER + LOAD HISTORY
+async function selectUser(id) {
+    currentReceiver = id;
+    document.getElementById("chatHeader").innerText = "Chat with User " + id;
+    document.getElementById("chat").innerHTML = "";
+
+    let res = await fetch(`http://127.0.0.1:8001/history/${id}`, {
+        headers: {
+            "Authorization": "Bearer " + token
+        }
+    });
+
+    let messages = await res.json();
+
+    messages.forEach(msg => {
+        if (msg.sender_id == userId) {
+            addMessage(msg.content, "sent");
+        } else {
+            addMessage(msg.content, "received");
+        }
+    });
+}
+
+// ⚡ WEBSOCKET
+function connectWebSocket() {
+    ws = new WebSocket(`ws://127.0.0.1:8001/ws/${userId}`);
+
+    ws.onmessage = (event) => {
+        addMessage(event.data, "received");
+    };
+}
+
+// 💬 ADD MESSAGE
+function addMessage(msg, type) {
+    let div = document.createElement("div");
+    div.classList.add("message", type);
+    div.innerText = msg;
+
+    document.getElementById("chat").appendChild(div);
+}
+
+// 📤 SEND MESSAGE
+async function sendMessage() {
+    let msg = document.getElementById("message").value;
+
+    if (!currentReceiver) {
+        alert("Select a user");
+        return;
+    }
+
+    await fetch(`http://127.0.0.1:8001/send?receiver_id=${currentReceiver}&content=${msg}`, {
+        method: "POST",
+        headers: {
+            "Authorization": "Bearer " + token
+        }
+    });
+
+    addMessage(msg, "sent");
+
+    ws.send(JSON.stringify({
+        receiver_id: currentReceiver,
+        message: msg
+    }));
+
+    document.getElementById("message").value = "";
+}
+</script>
+
+</body>
+</html>
